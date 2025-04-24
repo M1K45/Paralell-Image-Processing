@@ -22,99 +22,48 @@ namespace Paralell_Image_Processing
 
         private void buttonProcess_Click(object sender, EventArgs e)
         {
-            Bitmap imgInverted = imgBasic;
 
-            Bitmap imgThreshold = imgBasic;
-            Bitmap imgGrayscale = imgBasic;
+            Bitmap imgInverted =  new Bitmap (imgBasic);
+            Bitmap imgThreshold = new Bitmap (imgBasic);
+
+            // a copy of img Bacis for graying it out for paralell visualization purpose
+            Bitmap imgGrayscale = new Bitmap(imgBasic);
+
+            // grayed out image for edge detection
+            Bitmap edgeGrayscale = new Bitmap (imgBasic);
+            edgeGrayscale = ProcessingFunctions.Grayscale(edgeGrayscale);
+ 
             Bitmap imgEdge = new Bitmap(imgBasic.Width -2, imgBasic.Height -2);
 
-            // Loop through the images pixels to reset color.
-            for (int i = 0; i < imgThreshold.Width; i++)
+            Thread[] threads = new Thread[4];
+            threads[0] = new Thread(() =>
             {
-                for (int x = 0; x < imgThreshold.Height; x++)
-                {
+                ProcessingFunctions.Threshold(imgThreshold, 127);
+                pictureBoxThreshold.Image = imgThreshold;
+            });
 
-                    Color oc = imgBasic.GetPixel(i, x);
-                    int grayScale = (int)((oc.R * 0.3) + (oc.G * 0.59) + (oc.B * 0.11));
-                    Color nc = Color.FromArgb(oc.A, grayScale, grayScale, grayScale);
-                    imgGrayscale.SetPixel(i, x, nc);
-                    if (grayScale < 128)
-                    {
-                        imgThreshold.SetPixel(i, x, Color.Black);
-                    }
-                    else
-                    {
-                        imgThreshold.SetPixel(i, x, Color.White);
-                    }
-                }
-            }
-
-            double[,] xSobel = new double[,]
+            threads[1] = new Thread(() =>
             {
-                { -1, 0, 1 },
-                { -2, 0, 2 },
-                { -1, 0, 1 }
-            };
-            double[,] ySobel = new double[,]
+                ProcessingFunctions.EdgeDetection(imgEdge, edgeGrayscale);
+                pictureBoxEdge.Image = imgEdge;
+            });
+
+            threads[2] = new Thread(() =>
             {
-                { 1, 2, 1 },
-                { 0, 0, 0 },
-                { -1, -2, -1 }
-            };
+                imgGrayscale = ProcessingFunctions.Grayscale(imgGrayscale);
+                pictureBoxGrayscale.Image = imgGrayscale;
+            });
 
-            for (int i = 0; i < imgEdge.Width; i++)
+            threads[3] = new Thread(() =>
             {
-                for (int x = 0; x < imgEdge.Height; x++)
-                {
-                    double xGradient = 0;
-                    double yGradient = 0;
-                    for (int j = -1; j <= 1; j++)
-                    {
-                        for (int k = -1; k <= 1; k++)
-                        {
-                            xGradient += xSobel[1+j, 1+k] * imgGrayscale.GetPixel(i + j+1, x + k+1).R;
-                            yGradient += ySobel[1+j, 1+k] * imgGrayscale.GetPixel(i + j+1, x + k+1).R;
-                        }
-                    }
-                    int g = (int)Math.Sqrt((xGradient * xGradient) + (yGradient * yGradient));
-                    g = Math.Min(255, g);
-                    Color nc = Color.FromArgb(255, g, g, g);
-                    imgEdge.SetPixel(i, x, nc);
-                }
-            }
+            ProcessingFunctions.Mirror(imgInverted);
+                pictureBoxInversion.Image = imgInverted;
+            });
 
-            //for (int x =0; x < imgInverted.Width; x++)
-            //{
-            //    for (int y = 0; y < imgInverted.Height; y++)
-            //    {
-            //        Color oc = imgInverted.GetPixel(x, y);
-            //        Color nc = Color.FromArgb(oc.A, 255 - oc.R, 255 - oc.G, 255 - oc.B);
-            //        imgInverted.SetPixel(x, y, nc);
-            //    }
-
-            //}
-
-            for (int x =0; x < imgInverted.Width; x++)
-            {
-                for (int y = 0; y < imgInverted.Height / 2; y++)
-                {
-                    Console.WriteLine(imgInverted.Height - y);
-
-                    Color pixelMirrored = imgBasic.GetPixel(x, (imgInverted.Height -y -1));
-                    Color pixelInverted = imgBasic.GetPixel(x, y);
-                    imgInverted.SetPixel(x, y, pixelMirrored);
-                    
-                    imgInverted.SetPixel(x, imgInverted.Height - y - 1, pixelInverted);
-                }
-            }
-
-
-
-            pictureBoxThreshold.Image = imgThreshold;
-            pictureBoxEdge.Image = imgEdge;
-            pictureBoxInversion.Image = imgInverted;
-            pictureBoxGrayscale.Image = imgGrayscale;
-
+            threads[0].Start();
+            threads[1].Start();
+            threads[2].Start();
+            threads[3].Start();
         }
     }
 }
